@@ -1084,3 +1084,163 @@ docker exec namenode hdfs dfs -cat /data/crypto/rss/rss_2026-04-27_14-09.json
 
 # Dan cek local copy untuk dashboard:
 cat dashboard/data/live_rss.json
+
+**Anggota 4:**
+
+Langkah 1: Buat file spark/analysis.py
+```bash
+cd ~/cryptowatch
+```
+```bash
+nano spark/analysis.py
+```
+
+Kemudian copy-paste kode berikut:
+```bash
+#!/usr/bin/env python3
+"""
+CryptoWatch - Spark Analysis
+Anggota 4: Processing Layer (3 Analisis Wajib)
+"""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, hour, to_timestamp, avg, max, min, stddev, abs, count
+import json
+import os
+
+# ==================== KONFIGURASI ====================
+HDFS_BASE = "hdfs://namenode:8020"
+API_PATH = f"{HDFS_BASE}/data/crypto/api/"
+RSS_PATH = f"{HDFS_BASE}/data/crypto/rss/"
+OUTPUT_HDFS = f"{HDFS_BASE}/data/crypto/hasil/spark_results"
+DASHBOARD_JSON = "dashboard/data/spark_results.json"
+
+# ==================== SPARK SESSION ====================
+spark = SparkSession.builder \
+    .appName("CryptoWatch-Analysis") \
+    .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:8020") \
+    .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
+    .getOrCreate()
+
+spark.sparkContext.setLogLevel("WARN")
+print("✅ Spark Session berhasil dibuat")
+
+# ==================== LOAD DATA ====================
+print("📥 Membaca data dari HDFS...")
+
+# Baca semua file JSON di folder api dan rss (multiLine karena array of objects)
+df_api = spark.read.option("multiLine", True).json(API_PATH)
+df_rss = spark.read.option("multiLine", True).json(RSS_PATH)
+
+print(f"   API records : {df_api.count()}")
+print(f"   RSS records : {df_rss.count()}")
+
+# Buat temporary views
+df_api.createOrReplaceTempView("crypto_api")
+df_rss.createOrReplaceTempView("crypto_rss")
+
+# ==================== ANALISIS 1: Statistik Harga per Koin ====================
+print("📊 Menjalankan Analisis 1: Statistik Harga per Koin...")
+
+stat_harga = spark.sql("""
+    SELECT 
+        symbol,
+        COUNT(*) as jumlah_record,
+        ROUND(AVG(price_usd), 2) as rata_rata_usd,
+        ROUND(MAX(price_usd), 2) as tertinggi_usd,
+        ROUND(MIN(price_usd), 2) as terendah_usd,
+        ROUND(STDDEV(price_usd), 2) as std_deviasi_usd,
+        ROUND(AVG(change_24h), 2) as rata_rata_change_24h
+    FROM crypto_api
+    GROUP BY symbol
+    ORDER BY symbol
+""")
+
+stat_harga.show()
+
+# ==================== ANALISIS 2: Volatilitas per Jam ====================
+print("📊 Menjalankan Analisis 2: Volatilitas per Jam...")
+
+volatilitas = spark.sql("""
+    SELECT 
+        HOUR(TO_TIMESTAMP(timestamp)) AS jam,
+        ROUND(AVG(ABS(change_24h)), 4) as avg_volatilitas,
+        COUNT(*) as jumlah_data
+    FROM crypto_api
+    WHERE change_24h IS NOT NULL
+    GROUP BY HOUR(TO_TIMESTAMP(timestamp))
+    ORDER BY avg_volatilitas DESC
+""")
+
+volatilitas.show()
+
+# ==================== ANALISIS 3: Volume Berita per Jam ====================
+print("📊 Menjalankan Analisis 3: Volume Berita per Jam...")
+
+berita_per_jam = spark.sql("""
+    SELECT 
+        HOUR(TO_TIMESTAMP(timestamp)) AS jam,
+        COUNT(*) as jumlah_artikel
+    FROM crypto_rss
+    WHERE timestamp IS NOT NULL
+    GROUP BY HOUR(TO_TIMESTAMP(timestamp))
+    ORDER BY jumlah_artikel DESC
+""")
+
+berita_per_jam.show()
+
+# ==================== SIMPAN HASIL KE JSON ====================
+print("💾 Menyimpan hasil analisis...")
+
+# Gabungkan semua hasil menjadi satu dictionary
+results = {
+    "statistik_harga": [row.asDict() for row in stat_harga.collect()],
+    "volatilitas_per_jam": [row.asDict() for row in volatilitas.collect()],
+    "berita_per_jam": [row.asDict() for row in berita_per_jam.collect()],
+    "metadata": {
+        "total_api_records": df_api.count(),
+        "total_rss_records": df_rss.count(),
+        "last_updated": "2026-05-04"  # bisa diganti otomatis nanti
+    }
+}
+
+# Simpan ke dashboard (untuk Flask)
+os.makedirs("dashboard/data", exist_ok=True)
+with open(DASHBOARD_JSON, "w") as f:
+    json.dump(results, f, indent=2)
+
+print(f"✅ spark_results.json berhasil disimpan ke {DASHBOARD_JSON}")
+
+# Simpan juga ke HDFS (opsional)
+stat_harga.write.mode("overwrite").json(f"{OUTPUT_HDFS}/stat_harga")
+volatilitas.write.mode("overwrite").json(f"{OUTPUT_HDFS}/volatilitas")
+berita_per_jam.write.mode("overwrite").json(f"{OUTPUT_HDFS}/berita")
+
+print("🎉 Semua analisis selesai!")
+spark.stop()
+```
+
+Langkah 2: Jalankan Analisis Spark
+```bash
+cd ~/cryptowatch
+```
+```bash
+docker exec -it spark /opt/spark/bin/spark-submit /opt/spark-apps/analysis.py
+```
+
+Error handling sebelum langkah 3
+```bash
+docker exec spark find / -name "spark_results.json" 2>/dev/null
+```
+```bash
+docker cp spark:/opt/spark/work-dir/dashboard/data/spark_results.json ~/cryptowatch/dashboard/data/
+```
+
+Langkah 3: Verifikasi Hasil
+``bash
+#Cek file JSON di dashboard
+cat ~/cryptowatch/dashboard/data/spark_results.json | head -n 50
+
+#Cek di HDFS
+docker exec namenode hdfs dfs -ls /data/crypto/hasil/
+```
