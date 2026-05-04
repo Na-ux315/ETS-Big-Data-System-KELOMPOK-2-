@@ -1237,10 +1237,11 @@ docker cp spark:/opt/spark/work-dir/dashboard/data/spark_results.json ~/cryptowa
 ```
 
 Langkah 3: Verifikasi Hasil
-``bash
+```bash
 #Cek file JSON di dashboard
 cat ~/cryptowatch/dashboard/data/spark_results.json | head -n 50
-
+```
+```bash
 #Cek di HDFS
 docker exec namenode hdfs dfs -ls /data/crypto/hasil/
 ```
