@@ -322,7 +322,7 @@ pip install kafka-python feedparser hdfs flask
 
 ---
 
-## Prasyarat
+### Prasyarat
 
 Pastikan sudah terinstall:
 - Docker Desktop (dengan WSL integration aktif)
@@ -330,7 +330,7 @@ Pastikan sudah terinstall:
 
 ---
 
-## STEP 1 — Buat Struktur Folder Project
+### STEP 1 — Buat Struktur Folder Project
 
 ```bash
 mkdir -p ~/cryptowatch/{spark,dashboard/{templates,data}}
@@ -344,7 +344,7 @@ ls -R
 
 ---
 
-## STEP 2 — Buat `docker-compose.yml`
+### STEP 2 — Buat `docker-compose.yml`
 
 ```bash
 cat > ~/cryptowatch/docker-compose.yml << 'EOF'
@@ -430,7 +430,7 @@ echo "✅ docker-compose.yml selesai"
 
 ---
 
-## STEP 3 — Install Python Dependencies
+### STEP 3 — Install Python Dependencies
 
 ```bash
 pip3 install kafka-python feedparser hdfs flask requests --break-system-packages
@@ -438,7 +438,7 @@ pip3 install kafka-python feedparser hdfs flask requests --break-system-packages
 
 ---
 
-## STEP 4 — Pull Image Spark (lakukan sebelum compose up)
+### STEP 4 — Pull Image Spark (lakukan sebelum compose up)
 
 ```bash
 docker pull apache/spark:3.5.3
@@ -448,7 +448,7 @@ docker pull apache/spark:3.5.3
 
 ---
 
-## STEP 5 — Jalankan Semua Container
+### STEP 5 — Jalankan Semua Container
 
 ```bash
 cd ~/cryptowatch
@@ -477,7 +477,7 @@ Semua 5 container harus berstatus **Up** ✅
 
 ---
 
-## Catatan Penting
+### Catatan Penting
 
 | Hal | Keterangan |
 |-----|------------|
@@ -488,7 +488,7 @@ Semua 5 container harus berstatus **Up** ✅
 
 ---
 
-## Troubleshooting
+### Troubleshooting
 
 **Container namenode/datanode tidak muncul di `docker compose ps`:**
 ```bash
@@ -509,35 +509,41 @@ docker exec kafka kafka-topics --list --bootstrap-server kafka:29092
 
 lanjutan 
 
-# Buat direktori HDFS
+### Buat direktori HDFS
+```bash
 docker exec namenode hdfs dfs -mkdir -p /data/crypto/api
 docker exec namenode hdfs dfs -mkdir -p /data/crypto/rss
 docker exec namenode hdfs dfs -mkdir -p /data/crypto/hasil
 docker exec namenode hdfs dfs -chmod -R 777 /data/crypto
 docker exec namenode hdfs dfs -ls /data/crypto
+```
 
-# Buat Kafka topics
+### Buat Kafka topics
+```bash
 docker exec kafka kafka-topics --create \
   --bootstrap-server kafka:29092 \
   --topic crypto-api \
   --partitions 1 \
   --replication-factor 1
-
+```
+```bash
 docker exec kafka kafka-topics --create \
   --bootstrap-server kafka:29092 \
   --topic crypto-rss \
   --partitions 1 \
   --replication-factor 1
-
+```
+```bash
 docker exec kafka kafka-topics --list --bootstrap-server kafka:29092
+```
 
-Anggota 2:
+## Anggota 2:
 
 Berikut adalah **panduan langkah demi langkah** untuk **Anggota 2** yang bertanggung jawab mengembangkan `producer_api.py` — yaitu producer yang mengambil data harga real-time dari CoinGecko API dan mengirimkannya ke topic Kafka `crypto-api`.
 
 ---
 
-## 📌 Tugas Anggota 2
+📌 **Tugas Anggota 2**
 ✅ Membuat script Python `producer_api.py` yang:
 - Melakukan polling ke CoinGecko API setiap **60 detik** (atau interval yang sudah ditentukan)
 - Mengirim data harga BTC, ETH, BNB (USD & IDR, serta persen perubahan 24 jam) ke topic Kafka `crypto-api`
@@ -547,7 +553,7 @@ Berikut adalah **panduan langkah demi langkah** untuk **Anggota 2** yang bertang
 
 ---
 
-## 🧰 Prasyarat (Harus sudah siap dari anggota 1)
+🧰 **Prasyarat (Harus sudah siap dari anggota 1)**
 Sebelum menjalankan script producer, pastikan infrastruktur berikut sudah **running** dan **siap**:
 - Kafka broker tersedia di `localhost:9092`
 - Topic `crypto-api` sudah dibuat (oleh anggota 1)
@@ -562,7 +568,7 @@ docker exec kafka kafka-topics --list --bootstrap-server kafka:29092
 
 ---
 
-## 📁 Langkah 1 – Siapkan environment Python
+### 📁 Langkah 1 – Siapkan environment Python
 
 ```bash
 cd ~/cryptowatch   # masuk ke folder proyek
@@ -575,7 +581,7 @@ pip install kafka-python requests
 
 ---
 
-## 📁 Langkah 2 – Buat file `producer_api.py`
+### 📁 Langkah 2 – Buat file `producer_api.py`
 
 Gunakan editor (nano, vim, atau VS Code):
 
@@ -722,21 +728,21 @@ if __name__ == "__main__":
 
 ---
 
-## 📁 Langkah 3 – Uji coba producer secara manual
+### 📁 Langkah 3 – Uji coba producer secara manual
 
-### 3.1 Cek topic Kafka sudah ada
+#### 3.1 Cek topic Kafka sudah ada
 ```bash
 docker exec kafka kafka-topics --list --bootstrap-server kafka:29092
 # harus keluar "crypto-api"
 ```
 
-### 3.2 Jalankan consumer console (untuk melihat pesan yang masuk)
+#### 3.2 Jalankan consumer console (untuk melihat pesan yang masuk)
 Buka **terminal terpisah**:
 ```bash
 docker exec -it kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic crypto-api --from-beginning
 ```
 
-### 3.3 Jalankan producer
+#### 3.3 Jalankan producer
 Di terminal utama (dengan venv aktif):
 ```bash
 cd ~/cryptowatch
@@ -759,7 +765,7 @@ Dan di terminal consumer akan muncul JSON seperti:
 
 ---
 
-## 📁 Langkah 4 – Pastikan data sesuai spesifikasi
+### 📁 Langkah 4 – Pastikan data sesuai spesifikasi
 
 Periksa struktur JSON:
 - ✅ `symbol` (string) : BTC, ETH, BNB
@@ -772,7 +778,7 @@ Jika ada perbedaan (misal `change_24h` None), perbaiki logika fetch.
 
 ---
 
-## 📁 Langkah 5 – Integrasi dengan anggota lain
+### 📁 Langkah 5 – Integrasi dengan anggota lain
 
 Setelah producer berjalan stabil:
 - **Anggota 3** akan membuat `consumer_to_hdfs.py` yang membaca dari topic `crypto-api` (dan `crypto-rss`) lalu menyimpan ke HDFS.
@@ -790,7 +796,7 @@ pkill -f producer_api.py
 
 ---
 
-## 🧪 Langkah 6 – Debugging & Tips
+### 🧪 Langkah 6 – Debugging & Tips
 
 | Masalah | Solusi |
 |---------|--------|
@@ -802,7 +808,7 @@ pkill -f producer_api.py
 
 ---
 
-## 📤 Output yang diharapkan dari Anggota 2
+📤 **Output yang diharapkan dari Anggota 2**
 
 Pada akhir tugas, Anggota 2 harus menyerahkan/mendemonstrasikan:
 1. File `producer_api.py` yang sudah lengkap (seperti kode di atas)
@@ -814,12 +820,10 @@ Pada akhir tugas, Anggota 2 harus menyerahkan/mendemonstrasikan:
 
 Dengan panduan ini, Anda (Anggota 2) bisa langsung mengimplementasikan `producer_api.py` tanpa perlu mengatur infrastruktur (sudah disiapkan anggota 1). Selamat mengerjakan! 🚀
 
-Anggota 3:
-
-#### LANJUTAN ANGGOTA 3
+## Anggota 3:
 
 ### Bikin producer_rss.py
-
+```bash
 cat > ~/cryptowatch/producer_rss.py << 'EOF'
 import json
 import time
@@ -895,9 +899,10 @@ if __name__ == "__main__":
         print(f"⏳ Tunggu {INTERVAL//60} menit...\n")
         time.sleep(INTERVAL)
 EOF
+```
 
 ### Bikin consumer_to_hdfs.py
-
+```bash
 cat > ~/cryptowatch/consumer_to_hdfs.py << 'EOF'
 
 import json
@@ -1031,63 +1036,78 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n👋 Consumer dihentikan.")
 EOF
+```
 
 ### Jalanin producer_rss.py
+```bash
 # input
 python producer_rss.py atau python3 producer_rss.py
-
+```
+```bash
 # output
 🚀 producer_rss.py started → topic: crypto-rss
   ✅ Sent: [a1b2c3d4] Bitcoin Hits New High...
   ✅ Sent: [e5f6g7h8] Ethereum Update...
 📰 Batch selesai — 15 artikel baru dikirim | total sent: 15
 ⏳ Tunggu 5 menit...
+```
 
 ### Verifikasi masuk ke kafka (lewat terminal 2, yang sebelumn nya biarin jalan)
+```bash
 # input
 docker exec kafka kafka-console-consumer \
   --bootstrap-server kafka:29092 \
   --topic crypto-rss \
   --from-beginning \
   --max-messages 3
-
+```
+```bash
 # output
 {"article_id": "67cbd2ed", "title": "Signal in the age of infinite noise", "link": "https://www.coindesk.com/opinion/2026/04/27/signal-in-the-age-of-infinite-noise", "summary": "", "published": "Mon, 27 Apr 2026 13:45:02 +0000", "timestamp": "2026-04-27T14:01:45.922180+00:00"}
 {"article_id": "5eb812c0", "title": "Michael Saylor\u2019s Strategy buys 3,273 bitcoin as it inches closer to its 1 million target", "link": "https://www.coindesk.com/markets/2026/04/27/michael-saylor-s-strategy-buys-3-273-bitcoin-as-it-inches-closer-to-its-1-million-target", "summary": "", "published": "Mon, 27 Apr 2026 13:43:09 +0000", "timestamp": "2026-04-27T14:01:45.928667+00:00"}
 {"article_id": "c445287a", "title": "Bitmine buys $236 million in ether as Tom Lee touts ETH as 'wartime store of value'", "link": "https://www.coindesk.com/business/2026/04/27/bitmine-buys-usd236-million-in-ether-as-tom-lee-touts-eth-as-wartime-store-of-value", "summary": "", "published": "Mon, 27 Apr 2026 13:17:02 +0000", "timestamp": "2026-04-27T14:01:45.928923+00:00"}
 Processed a total of 3 messages
+```
 
 ### jalanin consumer_to_hdfs.py (lewat terminal 3 atau terminal 2 bekas verifikasi gpp, tapi verifikasi di terminal baru)
+```bash
 # input 
 python consumer_to_hdfs.py atau python3 consumer_to_hdfs.py
-
+```
+```bash
 # output
 🚀 consumer_to_hdfs.py started
    Flush interval: setiap 3 menit
 🎧 Listening on topic: crypto-api
 🎧 Listening on topic: crypto-rss
   📰 RSS: Bitcoin Hits New High...
+```
 
-# nanti muncul ini kalau berhasil:
+**nanti muncul ini kalau berhasil:**
+
 Successfully copied 9.94kB (transferred 11.8kB) to namenode:/tmp/rss_2026-04-27_14-09.json
 2026-04-27 14:09:30,652 INFO sasl.SaslDataTransferClient: SASL encryption trust check: localHostTrusted = false, remoteHostTrusted = false
   ☁️  Uploaded → /data/crypto/rss/rss_2026-04-27_14-09.json
 📰 RSS flush: 25 events → rss_2026-04-27_14-09.json
 
 ### verifikasi
-# Tunggu 3 menit sampai flush terjadi lalu verifikasi di HDFS:
+**Tunggu 3 menit sampai flush terjadi lalu verifikasi di HDFS:**
+```bash
 # Cek file masuk ke HDFS
 docker exec namenode hdfs dfs -ls /data/crypto/rss/
-
+```
+```bash
 # Lihat isi filenya
 docker exec namenode hdfs dfs -cat /data/crypto/rss/rss_2026-04-27_14-09.json
-
+```
+```bash
 # Dan cek local copy untuk dashboard:
 cat dashboard/data/live_rss.json
+```
 
-**Anggota 4:**
+## Anggota 4:
 
-Langkah 1: Buat file spark/analysis.py
+### Step 1 - Buat file spark/analysis.py
 ```bash
 cd ~/cryptowatch
 ```
@@ -1220,7 +1240,7 @@ print("🎉 Semua analisis selesai!")
 spark.stop()
 ```
 
-Langkah 2: Jalankan Analisis Spark
+### Step 2 - Jalankan Analisis Spark
 ```bash
 cd ~/cryptowatch
 ```
@@ -1228,7 +1248,7 @@ cd ~/cryptowatch
 docker exec -it spark /opt/spark/bin/spark-submit /opt/spark-apps/analysis.py
 ```
 
-Error handling sebelum langkah 3
+*Error handling sebelum step 3*
 ```bash
 docker exec spark find / -name "spark_results.json" 2>/dev/null
 ```
@@ -1236,7 +1256,7 @@ docker exec spark find / -name "spark_results.json" 2>/dev/null
 docker cp spark:/opt/spark/work-dir/dashboard/data/spark_results.json ~/cryptowatch/dashboard/data/
 ```
 
-Langkah 3: Verifikasi Hasil
+### Step 3 - Verifikasi Hasil
 ```bash
 #Cek file JSON di dashboard
 cat ~/cryptowatch/dashboard/data/spark_results.json | head -n 50
